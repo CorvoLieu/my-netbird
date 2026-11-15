@@ -1,0 +1,150 @@
+# Caddy (HTTPS for everything) + Dex/discord-shim (login) + NetBird
+# Fill in .env, then: docker compose up -d
+
+x-logging: &logging
+  driver: json-file
+  options:
+    max-size: "10m"
+    max-file: "3"
+
+x-default: &default
+  restart: unless-stopped
+  logging: *logging
+
+services:
+  caddy:
+    <<: *default
+    image: caddy:2-alpine
+    container_name: caddy
+    ports:
+      - "80:80"
+      - "443:443"
+      - "443:443/udp"
+    volumes:
+      - ./Caddyfile:/etc/caddy/Caddyfile:ro
+      - ./data/caddy/data:/data
+      - ./data/caddy/config:/config
+    mem_limit: 128m
+    memswap_limit: 128m
+    cpus: 0.4
+    cpu_shares: 512
+    pids_limit: 100
+    depends_on: [dex, dashboard, management, signal, relay]
+
+  # ---------- Login: Dex + Discord server check ----------
+  dex:
+    <<: *default
+    image: ghcr.io/dexidp/dex:latest
+    container_name: dex
+    command: ["dex", "serve", "/etc/dex/config.yaml"]
+    environment:
+      DISCORD_CLIENT_ID: ${DISCORD_CLIENT_ID}
+      DISCORD_CLIENT_SECRET: ${DISCORD_CLIENT_SECRET}
+    volumes:
+      - ./config.yaml:/etc/dex/config.yaml:ro
+      - ./data/dex:/var/dex
+    mem_limit: 64m
+    memswap_limit: 64m
+    cpus: 0.2
+    cpu_shares: 512
+    pids_limit: 50
+    depends_on: [discord-shim]
+
+  discord-shim:
+    <<: *default
+    image: python:3.12-alpine
+    container_name: discord-shim
+    command: ["python", "-u", "-B", "/app/discord_shim.py"]
+    environment:
+      DISCORD_GUILD_ID: ${DISCORD_GUILD_ID}
+    volumes:
+      - ./discord_shim.py:/app/discord_shim.py:ro
+    mem_limit: 48m
+    memswap_limit: 48m
+    cpus: 0.1
+    cpu_shares: 256
+    pids_limit: 30
+    user: "65534:65534"
+
+  # ---------- NetBird (all behind Caddy, no published ports) ----------
+  dashboard:
+    <<: *default
+    image: netbirdio/dashboard:latest
+    container_name: netbird-dashboard
+    environment:
+      - NETBIRD_MGMT_API_ENDPOINT=https://nb.skyblieu.com:443
+      - NETBIRD_MGMT_GRPC_API_ENDPOINT=https://nb.skyblieu.com:443
+      - AUTH_AUDIENCE=none
+      - AUTH_CLIENT_ID=netbird
+      - AUTH_CLIENT_SECRET=
+      - AUTH_AUTHORITY=https://dex.skyblieu.com/dex
+      - USE_AUTH0=false
+      - AUTH_SUPPORTED_SCOPES=openid profile email offline_access groups
+      - AUTH_REDIRECT_URI=/nb-auth
+      - AUTH_SILENT_REDIRECT_URI=/nb-silent-auth
+      - NETBIRD_TOKEN_SOURCE=idToken
+      - LETSENCRYPT_DOMAIN=none
+    mem_limit: 64m
+    memswap_limit: 64m
+    cpus: 0.1
+    pids_limit: 50
+
+  signal:
+    <<: *default
+    image: netbirdio/signal:latest
+    container_name: netbird-signal
+    volumes:
+      - ./data/netbird/signal:/var/lib/netbird
+    command: ["--log-file", "console", "--port", "80"]
+    mem_limit: 64m
+    memswap_limit: 64m
+    cpus: 0.25
+    pids_limit: 50
+
+  relay:
+    <<: *default
+    image: netbirdio/relay:latest
+    container_name: netbird-relay
+    environment:
+      - NB_LOG_LEVEL=info
+      - NB_LISTEN_ADDRESS=:80
+      - NB_EXPOSED_ADDRESS=rels://nb.skyblieu.com:443/relay
+      - NB_AUTH_SECRET=${NETBIRD_RELAY_SECRET}
+    mem_limit: 128m
+    memswap_limit: 128m
+    cpus: 0.5
+    pids_limit: 50
+
+  management:
+    <<: *default
+    image: netbirdio/management:latest
+    container_name: netbird-management
+    volumes:
+      - ./data/netbird/mgmt:/var/lib/netbird
+      - ./management.json:/etc/netbird/management.json
+    command: [
+      "--port", "80",
+      "--log-file", "console",
+      "--log-level", "debug",
+      "--disable-anonymous-metrics=false",
+      "--single-account-mode-domain=nb.skyblieu.com",
+      "--dns-domain=netbird.selfhosted"
+    ]
+    mem_limit: 256m
+    memswap_limit: 256m
+    cpus: 0.5
+    pids_limit: 100
+
+  coturn:
+    <<: *default
+    image: coturn/coturn:latest
+    container_name: netbird-coturn
+    volumes:
+      - ./turnserver.conf:/etc/turnserver.conf:ro
+    network_mode: host
+    command:
+      - -c /etc/turnserver.conf
+    mem_limit: 128m
+    memswap_limit: 128m
+    cpus: 0.3
+    pids_limit: 100

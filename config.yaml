@@ -1,0 +1,41 @@
+issuer: https://dex.skyblieu.com/dex
+
+storage:
+  type: sqlite3
+  config:
+    file: /var/dex/dex.db
+
+web:
+  http: 0.0.0.0:5556
+  allowedOrigins: ['https://nb.skyblieu.com']
+
+oauth2:
+  skipApprovalScreen: true
+
+connectors:
+- type: oauth
+  id: discord
+  name: Discord
+  config:
+    clientID: $DISCORD_CLIENT_ID
+    clientSecret: $DISCORD_CLIENT_SECRET
+    redirectURI: https://dex.skyblieu.com/dex/callback
+    authorizationURL: https://discord.com/oauth2/authorize
+    tokenURL: https://discord.com/api/oauth2/token
+    userInfoURL: http://discord-shim:8080/userinfo   # the shim, not Discord directly
+    scopes: [identify, email, guilds.members.read]
+    userIDKey: id
+    claimMapping:
+      userNameKey: username
+      preferredUsernameKey: username
+      emailKey: email
+      emailVerifiedKey: verified
+
+staticClients:
+- id: netbird
+  name: NetBird
+  secretEnv: NETBIRD_CLIENT_SECRET
+  redirectURIs:
+    - https://nb.skyblieu.com/nb-auth
+    - https://nb.skyblieu.com/nb-silent-auth
+    - http://localhost:53000

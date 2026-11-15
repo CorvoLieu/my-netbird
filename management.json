@@ -1,0 +1,120 @@
+{
+    "Stuns": [
+        {
+            "Proto": "udp",
+            "URI": "stun:nb.skyblieu.com:3478",
+            "Username": "",
+            "Password": ""
+        }
+    ],
+    "TURNConfig": {
+        "TimeBasedCredentials": false,
+        "CredentialsTTL": "12h0m0s",
+        "Secret": "secret",
+        "Turns": [
+            {
+                "Proto": "udp",
+                "URI": "turn:nb.skyblieu.com:3478",
+                "Username": "self",
+                "Password": "oPpmvXRnqxFNGapowJDgiaWx8PQZp/jR2vG/NX0OTmw"
+            }
+        ]
+    },
+    "Relay": {
+        "Addresses": [
+            "rels://nb.skyblieu.com:443/relay"
+        ],
+        "CredentialsTTL": "24h0m0s",
+        "Secret": "WObY+6aqaLWdLnQVPg2HVyPNjDigiqQYajHVKIdq9lQ"
+    },
+    "Signal": {
+        "Proto": "http",
+        "URI": "nb.skyblieu.com:443",
+        "Username": "",
+        "Password": ""
+    },
+    "Datadir": "/var/lib/netbird/",
+    "DataStoreEncryptionKey": "WwLt9E2QXaBOMX6PSPH5bhGuKcmVATXZKiptToq8/lg=",
+    "HttpConfig": {
+        "LetsEncryptDomain": "",
+        "CertFile": "",
+        "CertKey": "",
+        "AuthClientID": "",
+        "AuthAudience": "netbird",
+        "CLIAuthAudience": "",
+        "AuthIssuer": "https://dex.skyblieu.com/dex",
+        "AuthUserIDClaim": "",
+        "AuthKeysLocation": "https://dex.skyblieu.com/dex/keys",
+        "OIDCConfigEndpoint": "https://dex.skyblieu.com/dex/.well-known/openid-configuration",
+        "IdpSignKeyRefreshEnabled": false,
+        "ExtraAuthAudience": "",
+        "AuthCallbackURL": ""
+    },
+    "IdpManagerConfig": {
+        "ManagerType": "none",
+        "ClientConfig": {
+            "Issuer": "https://dex.skyblieu.com/dex",
+            "TokenEndpoint": "https://dex.skyblieu.com/dex/token",
+            "ClientID": "netbird",
+            "ClientSecret": "",
+            "GrantType": "client_credentials"
+        },
+        "ExtraConfig": {},
+        "Auth0ClientCredentials": null,
+        "AzureClientCredentials": null,
+        "KeycloakClientCredentials": null,
+        "ZitadelClientCredentials": null
+    },
+    "DeviceAuthorizationFlow": {
+        "Provider": "none",
+        "ProviderConfig": {
+            "ClientID": "",
+            "ClientSecret": "",
+            "Domain": "",
+            "Audience": "netbird",
+            "TokenEndpoint": "https://dex.skyblieu.com/dex/token",
+            "DeviceAuthEndpoint": "https://dex.skyblieu.com/dex/device/code",
+            "AuthorizationEndpoint": "",
+            "Scope": "openid",
+            "UseIDToken": false,
+            "RedirectURLs": null,
+            "DisablePromptLogin": false,
+            "LoginFlag": 0
+        }
+    },
+    "PKCEAuthorizationFlow": {
+        "ProviderConfig": {
+            "ClientID": "netbird",
+            "ClientSecret": "",
+            "Domain": "",
+            "Audience": "",
+            "TokenEndpoint": "https://dex.skyblieu.com/dex/token",
+            "DeviceAuthEndpoint": "",
+            "AuthorizationEndpoint": "https://dex.skyblieu.com/dex/auth",
+            "Scope": "openid profile email offline_access groups",
+            "UseIDToken": true,
+            "RedirectURLs": [
+                "http://localhost:53000"
+            ],
+            "DisablePromptLogin": false,
+            "LoginFlag": 0
+        }
+    },
+    "StoreConfig": {
+        "Engine": "sqlite"
+    },
+    "ReverseProxy": {
+        "TrustedHTTPProxies": [],
+        "TrustedHTTPProxiesCount": 0,
+        "TrustedPeers": [],
+        "AccessLogRetentionDays": 0,
+        "AccessLogCleanupIntervalHours": 0
+    },
+    "AgentNetwork": {
+        "PricingDefaultsFile": ""
+    },
+    "DisableDefaultPolicy": true,
+    "EmbeddedIdP": null,
+    "HighestSupportedSyncMessageVersion": null,
+    "PerAccountHighestSupportedSyncMessageVersion": null
+}

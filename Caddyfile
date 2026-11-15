@@ -1,0 +1,17 @@
+dex.skyblieu.com {
+	reverse_proxy dex:5556
+}
+
+nb.skyblieu.com {
+	# Caddy tries the most specific paths first; /* (dashboard) is the fallback
+	reverse_proxy /relay* relay:80
+	reverse_proxy /signalexchange.SignalExchange/* h2c://signal:80
+	reverse_proxy /api/* management:80
+	reverse_proxy /management.ManagementService/* h2c://management:80
+	reverse_proxy /* dashboard:80
+}
+
+
+http://, https:// {
+	redir https://{host}{uri}
+}
