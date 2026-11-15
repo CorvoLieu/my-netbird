@@ -25,10 +25,10 @@
             "rels://nb.skyblieu.com:443/relay"
         ],
         "CredentialsTTL": "24h0m0s",
-        "Secret": "WObY+6aqaLWdLnQVPg2HVyPNjDigiqQYajHVKIdq9lQ"
+        "Secret": "CHANGE_ME"
     },
     "Signal": {
-        "Proto": "http",
+        "Proto": "https",
         "URI": "nb.skyblieu.com:443",
         "Username": "",
         "Password": ""

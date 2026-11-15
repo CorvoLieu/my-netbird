@@ -12,6 +12,6 @@ nb.skyblieu.com {
 }
 
 
-http://, https:// {
+http:// {
 	redir https://{host}{uri}
 }

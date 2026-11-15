@@ -1,8 +1,8 @@
 .DEFAULT_GOAL := run
-.PHONY: run
+.PHONY: run stop
 
 run:
 	docker compose up -d
 
 stop:
-	docker compose down -v
+	docker compose down

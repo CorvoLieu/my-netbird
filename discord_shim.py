@@ -12,6 +12,8 @@ which NetBird can sync if JWT group sync is enabled.
 """
 import json
 import os
+import threading
+import time
 import urllib.error
 import urllib.request
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
@@ -36,6 +38,28 @@ def discord_get(path, auth):
     })
     with urllib.request.urlopen(req, timeout=10) as r:
         return json.load(r)
+
+
+# Guild/roles/channel are the same for every login, so cache them briefly
+# instead of making 3 bot calls per login (avoids Discord rate limits on bursts).
+GUILD_CACHE_TTL = int(os.environ.get("DISCORD_CACHE_TTL", "60"))
+_guild_cache = {"at": 0.0, "data": None}
+_guild_lock = threading.Lock()
+
+
+def guild_data():
+    """Return (guild, roles, channel), fetched with the bot token and cached."""
+    with _guild_lock:  # one fetch at a time; concurrent logins reuse its result
+        if _guild_cache["data"] and time.monotonic() - _guild_cache["at"] < GUILD_CACHE_TTL:
+            return _guild_cache["data"]
+        bot = f"Bot {BOT_TOKEN}"
+        data = (
+            discord_get(f"/guilds/{GUILD_ID}", bot),
+            discord_get(f"/guilds/{GUILD_ID}/roles", bot),
+            discord_get(f"/channels/{CHANNEL_ID}", bot),
+        )
+        _guild_cache.update(at=time.monotonic(), data=data)
+        return data
 
 
 def can_view_channel(user_id, member_roles, guild, roles, channel):
@@ -99,11 +123,8 @@ class Handler(BaseHTTPRequestHandler):
         member_roles = member.get("roles", [])
 
         if CHANNEL_ID:
-            bot = f"Bot {BOT_TOKEN}"
             try:
-                guild = discord_get(f"/guilds/{GUILD_ID}", bot)
-                roles = discord_get(f"/guilds/{GUILD_ID}/roles", bot)
-                channel = discord_get(f"/channels/{CHANNEL_ID}", bot)
+                guild, roles, channel = guild_data()
             except urllib.error.HTTPError as e:
                 print(f"ERROR   bot lookup failed with {e.code} - is the bot in the server and can it see the channel?", flush=True)
                 return self.reply(502, {"error": "bot lookup failed"})

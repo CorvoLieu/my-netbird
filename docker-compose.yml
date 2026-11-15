@@ -55,8 +55,8 @@ services:
     image: python:3.12-alpine
     container_name: discord-shim
     command: ["python", "-u", "-B", "/app/discord_shim.py"]
-    environment:
-      DISCORD_GUILD_ID: ${DISCORD_GUILD_ID}
+    env_file:
+      - .env
     volumes:
       - ./discord_shim.py:/app/discord_shim.py:ro
     mem_limit: 48m
@@ -142,8 +142,7 @@ services:
     volumes:
       - ./turnserver.conf:/etc/turnserver.conf:ro
     network_mode: host
-    command:
-      - -c /etc/turnserver.conf
+    command: ["-c", "/etc/turnserver.conf"]
     mem_limit: 128m
     memswap_limit: 128m
     cpus: 0.3
