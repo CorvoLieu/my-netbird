@@ -1,42 +1,47 @@
 #!/bin/sh
-# Loads all settings and secrets from Bitwarden, renders management.json, then runs the given command.
+# Loads all settings and secrets from Bitwarden Secrets Manager, renders
+# management.json, then runs the given command.
 #   Usage: sh with-secrets.sh docker compose up -d
 #
-# Everything lives as custom fields on one Bitwarden vault item (default name "netbird",
-# override with BW_ITEM). See README.md for the field list.
+# Each secret's name in Secrets Manager is the env var name (e.g. TURN_PASSWORD).
+# The machine account's access token is read from $BWS_ACCESS_TOKEN, or from
+# $BWS_TOKEN_FILE (default .secrets/bws-token). Set BWS_PROJECT_ID to only load
+# one project. See README.md.
 set -eu
 
-ITEM="${BW_ITEM:-netbird}"
 REQUIRED="DISCORD_CLIENT_ID DISCORD_CLIENT_SECRET DISCORD_GUILD_ID NETBIRD_RELAY_SECRET TURN_PASSWORD NETBIRD_DATASTORE_KEY"
-OPTIONAL="DISCORD_BOT_TOKEN DISCORD_CHANNEL_ID DISCORD_ALLOWED_ROLE_IDS"
+# Optional (left empty if not in Secrets Manager): DISCORD_BOT_TOKEN DISCORD_CHANNEL_ID DISCORD_ALLOWED_ROLE_IDS
 
 die() { echo "with-secrets: $*" >&2; exit 1; }
+quote() { printf "'%s'" "$(printf '%s' "$1" | sed "s/'/'\\\\''/g")"; }
 
-command -v bw >/dev/null || die "Bitwarden CLI 'bw' not found (https://bitwarden.com/help/cli/)"
+cd "$(dirname "$0")"
+
+# Phase 1: re-run this script under `bws run`, which adds the secrets to the environment.
+if [ -z "${_NB_SECRETS_LOADED:-}" ]; then
+  command -v bws >/dev/null || die "Bitwarden Secrets Manager CLI 'bws' not found (https://bitwarden.com/help/secrets-manager-cli/)"
+  if [ -z "${BWS_ACCESS_TOKEN:-}" ]; then
+    token_file="${BWS_TOKEN_FILE:-.secrets/bws-token}"
+    [ -r "$token_file" ] || die "no access token: set BWS_ACCESS_TOKEN or create $token_file"
+    BWS_ACCESS_TOKEN="$(tr -d '\r\n' < "$token_file")"
+    export BWS_ACCESS_TOKEN
+  fi
+  export _NB_SECRETS_LOADED=1
+  cmd="sh $(quote "$(basename "$0")")"   # we already cd'd into the script's directory
+  for arg in "$@"; do cmd="$cmd $(quote "$arg")"; done
+  if [ -n "${BWS_PROJECT_ID:-}" ]; then
+    exec bws run --project-id "$BWS_PROJECT_ID" -- "$cmd"
+  fi
+  exec bws run -- "$cmd"
+fi
+
+# Phase 2: secrets are in the environment.
+unset BWS_ACCESS_TOKEN _NB_SECRETS_LOADED   # don't pass the token on to docker/containers
 command -v jq >/dev/null || die "'jq' not found (apt install jq)"
 
-case "$(bw status | jq -r .status)" in
-  unauthenticated) die "not logged in - run 'bw login' once first" ;;
-  locked)
-    BW_SESSION="$(bw unlock --raw)" || die "unlock failed"
-    export BW_SESSION
-    ;;
-esac
-
-bw sync >/dev/null
-item="$(bw get item "$ITEM")" || die "vault item '$ITEM' not found"
-
-field() {
-  printf '%s' "$item" | jq -er --arg n "$1" '.fields[]? | select(.name == $n) | .value // empty'
-}
-
 for name in $REQUIRED; do
-  value="$(field "$name")" || die "field '$name' is missing or empty on item '$ITEM'"
-  export "$name=$value"
-done
-for name in $OPTIONAL; do
-  value="$(field "$name")" || value=""
-  export "$name=$value"
+  eval "value=\${$name:-}"
+  [ -n "$value" ] || die "secret '$name' is missing in Secrets Manager (or the machine account can't read it)"
 done
 
 # NetBird management can't read env vars, so write a filled-in copy (owner-only, git-ignored).
