@@ -105,10 +105,8 @@ class Handler(BaseHTTPRequestHandler):
             return self.reply(401, {"error": "missing token"})
         try:
             user = discord_get("/users/@me", auth)
-        except urllib.error.HTTPError as e:
-            return self.reply(502, {"error": f"discord returned {e.code}"})
-        except Exception:
-            return self.reply(502, {"error": "could not reach discord"})
+        except Exception as e:
+            return self.fail("/users/@me (user token)", e)
         name = f"{user.get('username')} ({user.get('id')})"
 
         # Membership + roles, using the user's own token (scope: guilds.members.read)
@@ -117,19 +115,16 @@ class Handler(BaseHTTPRequestHandler):
         except urllib.error.HTTPError as e:
             if e.code in (403, 404):
                 return self.deny(name, "not in server")
-            return self.reply(502, {"error": f"discord returned {e.code}"})
-        except Exception:
-            return self.reply(502, {"error": "could not reach discord"})
+            return self.fail("guild member lookup (user token)", e)
+        except Exception as e:
+            return self.fail("guild member lookup (user token)", e)
         member_roles = member.get("roles", [])
 
         if CHANNEL_ID:
             try:
                 guild, roles, channel = guild_data()
-            except urllib.error.HTTPError as e:
-                print(f"ERROR   bot lookup failed with {e.code} - is the bot in the server and can it see the channel?", flush=True)
-                return self.reply(502, {"error": "bot lookup failed"})
-            except Exception:
-                return self.reply(502, {"error": "could not reach discord"})
+            except Exception as e:
+                return self.fail("guild/roles/channel lookup (bot token) - is the bot in the server and can it see the channel?", e)
             if not can_view_channel(user["id"], member_roles, guild, roles, channel):
                 return self.deny(name, "cannot see channel")
         elif ALLOWED_ROLES and not ALLOWED_ROLES.intersection(member_roles):
@@ -138,6 +133,19 @@ class Handler(BaseHTTPRequestHandler):
         print(f"ALLOWED {name}", flush=True)
         user["groups"] = ["discord-member"] + [f"discord-role-{r}" for r in member_roles]
         self.reply(200, user)
+
+    def fail(self, step, err):
+        """Log why a Discord call failed (status + Discord's message) and return 502."""
+        if isinstance(err, urllib.error.HTTPError):
+            try:
+                body = err.read(300).decode(errors="replace")
+            except Exception:
+                body = ""
+            detail = f"HTTP {err.code} {body}".strip()
+        else:
+            detail = f"{type(err).__name__}: {err}"
+        print(f"ERROR   {step} failed: {detail}", flush=True)
+        return self.reply(502, {"error": f"discord call failed: {step}"})
 
     def deny(self, name, reason):
         print(f"DENIED  {name} - {reason}", flush=True)

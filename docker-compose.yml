@@ -150,3 +150,9 @@ services:
     memswap_limit: 128m
     cpus: 0.3
     pids_limit: 100
+
+networks:
+  default:
+    driver_opts:
+      # Host NIC MTU is 1450; Docker's default 1500 makes TLS handshakes from containers hang.
+      com.docker.network.driver.mtu: 1400
