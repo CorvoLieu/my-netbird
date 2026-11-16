@@ -44,8 +44,9 @@ everything and starts the stack. No master password is involved.
    EU-region accounts also need `export BWS_SERVER_URL=https://vault.bitwarden.eu`.
 5. `make run` to start, `make stop` to stop.
 
-If the machine account can read more than one project, set `BWS_PROJECT_ID` to the
-`netbird` project's ID so only its secrets are loaded.
+Secrets are loaded only from the project named `netbird`, found by name. Use
+`BWS_PROJECT=<name>` for a different name, or `BWS_PROJECT_ID=<uuid>` to skip the
+lookup (the ID is the long code shown by `bws project list`, not the name).
 
 `management.json.tmpl` is the NetBird config; the real file is written to
 `.secrets/management.json` (git-ignored, owner-only) on each `make run`.

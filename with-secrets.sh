@@ -5,8 +5,8 @@
 #
 # Each secret's name in Secrets Manager is the env var name (e.g. TURN_PASSWORD).
 # The machine account's access token is read from $BWS_ACCESS_TOKEN, or from
-# $BWS_TOKEN_FILE (default .secrets/bws-token). Set BWS_PROJECT_ID to only load
-# one project. See README.md.
+# $BWS_TOKEN_FILE (default .secrets/bws-token). Secrets are loaded from the project
+# named $BWS_PROJECT (default "netbird"), or set BWS_PROJECT_ID to its ID. See README.md.
 set -eu
 
 REQUIRED="DISCORD_CLIENT_ID DISCORD_CLIENT_SECRET DISCORD_GUILD_ID NETBIRD_RELAY_SECRET TURN_PASSWORD NETBIRD_DATASTORE_KEY"
@@ -26,13 +26,23 @@ if [ -z "${_NB_SECRETS_LOADED:-}" ]; then
     BWS_ACCESS_TOKEN="$(tr -d '\r\n' < "$token_file")"
     export BWS_ACCESS_TOKEN
   fi
+  command -v jq >/dev/null || die "'jq' not found (apt install jq)"
+
+  # Find the project's ID from its name, unless an ID was given.
+  if [ -z "${BWS_PROJECT_ID:-}" ]; then
+    project="${BWS_PROJECT:-netbird}"
+    projects="$(bws project list --output json)" || die "could not list projects (wrong token, or EU account without BWS_SERVER_URL?)"
+    BWS_PROJECT_ID="$(printf '%s' "$projects" | jq -r --arg n "$project" '[.[] | select(.name == $n)][0].id // empty')"
+    if [ -z "$BWS_PROJECT_ID" ]; then
+      visible="$(printf '%s' "$projects" | jq -r '[.[].name] | join(", ")')"
+      die "machine account can't see a project named '$project' (it can see: ${visible:-nothing}). Give it access to the project in Secrets Manager → Machine accounts → Projects."
+    fi
+  fi
+
   export _NB_SECRETS_LOADED=1
   cmd="sh $(quote "$(basename "$0")")"   # we already cd'd into the script's directory
   for arg in "$@"; do cmd="$cmd $(quote "$arg")"; done
-  if [ -n "${BWS_PROJECT_ID:-}" ]; then
-    exec bws run --project-id "$BWS_PROJECT_ID" -- "$cmd"
-  fi
-  exec bws run -- "$cmd"
+  exec bws run --project-id "$BWS_PROJECT_ID" -- "$cmd"
 fi
 
 # Phase 2: secrets are in the environment.
