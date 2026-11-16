@@ -34,7 +34,7 @@ connectors:
 staticClients:
 - id: netbird
   name: NetBird
-  secretEnv: CHANGE_ME
+  public: true   # dashboard + CLI use PKCE, no client secret
   redirectURIs:
     - https://nb.skyblieu.com/nb-auth
     - https://nb.skyblieu.com/nb-silent-auth

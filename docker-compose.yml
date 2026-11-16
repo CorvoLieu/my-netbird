@@ -1,5 +1,5 @@
 # Caddy (HTTPS for everything) + Dex/discord-shim (login) + NetBird
-# Fill in .env, then: docker compose up -d
+# All settings and secrets come from Bitwarden (see README.md), then: make run
 
 x-logging: &logging
   driver: json-file
@@ -55,8 +55,11 @@ services:
     image: python:3.12-alpine
     container_name: discord-shim
     command: ["python", "-u", "-B", "/app/discord_shim.py"]
-    env_file:
-      - .env
+    environment:   # all from Bitwarden via with-secrets.sh
+      DISCORD_GUILD_ID: ${DISCORD_GUILD_ID}
+      DISCORD_CHANNEL_ID: ${DISCORD_CHANNEL_ID:-}
+      DISCORD_ALLOWED_ROLE_IDS: ${DISCORD_ALLOWED_ROLE_IDS:-}
+      DISCORD_BOT_TOKEN: ${DISCORD_BOT_TOKEN:-}
     volumes:
       - ./discord_shim.py:/app/discord_shim.py:ro
     mem_limit: 48m
@@ -121,7 +124,7 @@ services:
     container_name: netbird-management
     volumes:
       - ./data/netbird/mgmt:/var/lib/netbird
-      - ./management.json:/etc/netbird/management.json
+      - ./.secrets/management.json:/etc/netbird/management.json   # rendered by with-secrets.sh
     command: [
       "--port", "80",
       "--log-file", "console",
@@ -142,7 +145,7 @@ services:
     volumes:
       - ./turnserver.conf:/etc/turnserver.conf:ro
     network_mode: host
-    command: ["-c", "/etc/turnserver.conf"]
+    command: ["-c", "/etc/turnserver.conf", "--user=self:${TURN_PASSWORD}"]   # from Bitwarden
     mem_limit: 128m
     memswap_limit: 128m
     cpus: 0.3

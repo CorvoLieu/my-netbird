@@ -2,7 +2,7 @@
 .PHONY: run stop
 
 run:
-	docker compose up -d
+	sh with-secrets.sh docker compose up -d
 
 stop:
 	docker compose down
